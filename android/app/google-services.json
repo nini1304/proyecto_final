@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "91757204726",
+    "project_id": "petadopt-36583",
+    "storage_bucket": "petadopt-36583.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:91757204726:android:f6318a85c1aea1fd2b48d7",
+        "android_client_info": {
+          "package_name": "com.example.proyecto_final"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN7YazGr0BMxx_UFcc2onaux7b4dAEAxY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
