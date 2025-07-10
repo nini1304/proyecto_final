@@ -19,7 +19,12 @@ class AuthController {
     return userCredential.user;
   }
 
-  Future<User?> register(String email, String password, String role) async {
+  Future<User?> register(
+    String email,
+    String password,
+    String role,
+    String phone,
+  ) async {
     final userCredential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -31,6 +36,7 @@ class AuthController {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'email': email,
         'role': role,
+        'phone': phone,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

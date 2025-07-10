@@ -7,20 +7,77 @@ import '../../domain/models/pet.dart';
 import '../../domain/models/adoption_request.dart';
 import '../../config/palette.dart';
 
-class PetDetailScreen extends ConsumerWidget {
+class PetDetailScreen extends ConsumerStatefulWidget {
   final Pet pet;
 
   const PetDetailScreen({super.key, required this.pet});
 
-  Future<void> sendAdoptionRequest(BuildContext context) async {
+  @override
+  ConsumerState<PetDetailScreen> createState() => _PetDetailScreenState();
+}
+
+class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
+  bool _hasRequested = false;
+  String _userRole = '';
+  String? _ownerEmail;
+  String? _ownerPhone;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRequestStatus();
+    _getUserRole();
+    _getOwnerContact();
+  }
+
+  Future<void> _checkRequestStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final query = await FirebaseFirestore.instance
+        .collection('adoption_requests')
+        .where('petId', isEqualTo: widget.pet.id)
+        .where('userId', isEqualTo: uid)
+        .get();
+    if (query.docs.isNotEmpty) {
+      setState(() => _hasRequested = true);
+    }
+  }
+
+  Future<void> _getUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (doc.exists && doc.data()!.containsKey('role')) {
+      setState(() => _userRole = doc['role']);
+    }
+  }
+
+  Future<void> _getOwnerContact() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.pet.ownerId)
+        .get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      setState(() {
+        _ownerEmail = data['email'];
+        _ownerPhone = data['phone'];
+      });
+    }
+  }
+
+  Future<void> _sendAdoptionRequest() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     final request = AdoptionRequest(
       id: '',
-      petId: pet.id,
-      petName: pet.name,
-      petOwnerId: pet.ownerId,
+      petId: widget.pet.id,
+      petName: widget.pet.name,
+      petOwnerId: widget.pet.ownerId,
       userId: user.uid,
       userEmail: user.email ?? '',
       status: 'pendiente',
@@ -30,40 +87,34 @@ class PetDetailScreen extends ConsumerWidget {
       await FirebaseFirestore.instance
           .collection('adoption_requests')
           .add(request.toMap());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud enviada 💌')),
-      );
+      setState(() => _hasRequested = true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Solicitud enviada 💌')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   ImageProvider getPetImage() {
-    if (pet.localImagePath != null && pet.localImagePath!.isNotEmpty) {
-      final file = File(pet.localImagePath!);
+    if (widget.pet.localImagePath != null &&
+        widget.pet.localImagePath!.isNotEmpty) {
+      final file = File(widget.pet.localImagePath!);
       if (file.existsSync()) return FileImage(file);
     }
-    if (pet.imageUrl != null && pet.imageUrl!.isNotEmpty) {
-      return NetworkImage(pet.imageUrl!);
+    if (widget.pet.imageUrl != null && widget.pet.imageUrl!.isNotEmpty) {
+      return NetworkImage(widget.pet.imageUrl!);
     }
     return const AssetImage('assets/default_pet.png');
   }
 
-  Future<String?> fetchOwnerEmail(String ownerId) async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(ownerId).get();
-    if (doc.exists && doc.data()!.containsKey('email')) {
-      return doc['email'];
-    }
-    return null;
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(pet.name),
+        title: Text(widget.pet.name),
         backgroundColor: AppColors.coralSuave,
       ),
       body: Padding(
@@ -82,7 +133,7 @@ class PetDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              pet.name,
+              widget.pet.name,
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -91,11 +142,12 @@ class PetDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${pet.species} ${pet.breed != null ? "• ${pet.breed}" : ""} • ${pet.age} años',
+              '${widget.pet.species} ${widget.pet.breed != null ? "• ${widget.pet.breed}" : ""} • ${widget.pet.age} años',
               style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 16),
-            if (pet.description != null && pet.description!.isNotEmpty)
+            if (widget.pet.description != null &&
+                widget.pet.description!.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -109,41 +161,45 @@ class PetDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    pet.description!,
+                    widget.pet.description!,
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                 ],
               ),
-            FutureBuilder<String?>(
-              future: fetchOwnerEmail(pet.ownerId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(height: 24, child: CircularProgressIndicator());
-                }
-                final email = snapshot.data;
-                if (email == null) return const SizedBox();
-                return Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    Text(
-                      'Contacto: $email',
-                      style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+            if (_ownerEmail != null)
+              Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    _ownerPhone != null && _ownerPhone!.isNotEmpty
+                        ? 'Contacto: $_ownerEmail / $_ownerPhone'
+                        : 'Contacto: $_ownerEmail',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
                     ),
-                  ],
-                );
-              },
-            ),
-            const Spacer(),
-            ElevatedButton.icon(
-              onPressed: () => sendAdoptionRequest(context),
-              icon: const Icon(Icons.favorite_outline),
-              label: const Text('Solicitar Adopción'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.coralSuave,
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  ),
+                ],
               ),
-            ),
+            const Spacer(),
+            if (_userRole != 'refugio')
+              ElevatedButton.icon(
+                onPressed: _hasRequested ? null : _sendAdoptionRequest,
+                icon: const Icon(Icons.favorite_outline),
+                label: Text(
+                  _hasRequested ? 'Solicitud enviada' : 'Solicitar Adopción',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _hasRequested
+                      ? AppColors.melocotonPastel.withOpacity(0.7)
+                      : AppColors.coralSuave,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 24,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

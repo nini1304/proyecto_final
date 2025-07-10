@@ -6,17 +6,28 @@ import '../../domain/models/pet.dart';
 import '../../data/datasources/firebase/pet_remote_ds.dart';
 import 'pet_detail_screen.dart';
 
-final petListProvider = FutureProvider<List<Pet>>((ref) async {
+final petListProvider = FutureProvider.autoDispose<List<Pet>>((ref) async {
   final ds = PetRemoteDataSource();
   final allPets = await ds.fetchAllPets();
   return allPets.where((pet) => pet.adopted == false).toList();
 });
 
-class PetListScreen extends ConsumerWidget {
+class PetListScreen extends ConsumerStatefulWidget {
   const PetListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PetListScreen> createState() => _PetListScreenState();
+}
+
+class _PetListScreenState extends ConsumerState<PetListScreen> with RouteAware {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ref.refresh(petListProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final petAsync = ref.watch(petListProvider);
 
     return Scaffold(
@@ -33,9 +44,11 @@ class PetListScreen extends ConsumerWidget {
 
             ImageProvider imageProvider;
 
-            if (pet.localImagePath != null && File(pet.localImagePath!).existsSync()) {
+            if (pet.localImagePath != null &&
+                File(pet.localImagePath!).existsSync()) {
               imageProvider = FileImage(File(pet.localImagePath!));
-            } else if (pet.imageUrl != null && pet.imageUrl!.startsWith('http')) {
+            } else if (pet.imageUrl != null &&
+                pet.imageUrl!.startsWith('http')) {
               imageProvider = NetworkImage(pet.imageUrl!);
             } else {
               imageProvider = const AssetImage('assets/default_pet.png');
@@ -66,10 +79,8 @@ class PetListScreen extends ConsumerWidget {
                 ),
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => PetDetailScreen(pet: pet),
-                  ),
-                ),
+                  MaterialPageRoute(builder: (_) => PetDetailScreen(pet: pet)),
+                ).then((_) => ref.refresh(petListProvider)),
               ),
             );
           },

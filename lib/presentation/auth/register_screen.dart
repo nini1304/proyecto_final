@@ -14,6 +14,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   String _selectedRole = 'adoptante';
   bool _isLoading = false;
 
@@ -22,16 +23,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authControllerProvider).register(
+      await ref
+          .read(authControllerProvider)
+          .register(
             _emailController.text.trim(),
             _passwordController.text.trim(),
             _selectedRole,
+            _phoneController.text.trim(),
           );
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -83,6 +87,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             value!.length < 6 ? 'Mínimo 6 caracteres' : null,
                       ),
                       const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Número de teléfono',
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                        validator: (value) =>
+                            value!.isEmpty ? 'Campo requerido' : null,
+                      ),
+                      const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: _selectedRole,
                         decoration: const InputDecoration(
@@ -100,7 +115,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         ],
                         onChanged: (value) {
-                          if (value != null) setState(() => _selectedRole = value);
+                          if (value != null)
+                            setState(() => _selectedRole = value);
                         },
                       ),
                       const SizedBox(height: 24),
@@ -109,7 +125,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _register,
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
                               : const Text('Registrarse'),
                         ),
                       ),
